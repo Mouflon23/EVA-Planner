@@ -79,6 +79,7 @@ function createBaseHelpers() {
 
 function createMemoryEventStore() {
   const eventsByGuild = new Map();
+  const settingsByGuild = new Map();
   let nextId = 1;
 
   return {
@@ -97,6 +98,15 @@ function createMemoryEventStore() {
     async listEvents({ guildId }) {
       const guildEvents = eventsByGuild.get(guildId) ?? [];
       return [...guildEvents].sort((a, b) => a.id - b.id);
+    },
+    async getGuildSettings({ guildId }) {
+      return settingsByGuild.get(guildId) ?? { weekStartDay: 1 };
+    },
+    async setWeekStartDay({ guildId, weekStartDay }) {
+      const current = settingsByGuild.get(guildId) ?? { weekStartDay: 1 };
+      const updated = { ...current, weekStartDay };
+      settingsByGuild.set(guildId, updated);
+      return updated;
     },
     async deleteEvent({ guildId, id }) {
       const guildEvents = eventsByGuild.get(guildId) ?? [];
@@ -154,8 +164,10 @@ async function createMongoEventStore(mongoUri) {
   await client.connect();
 
   const collection = client.db("eva_planner").collection("events");
+  const settingsCollection = client.db("eva_planner").collection("guild_settings");
   await collection.createIndex({ guildId: 1, id: 1 }, { unique: true });
   await collection.createIndex({ nextPostAt: 1 });
+  await settingsCollection.createIndex({ guildId: 1 }, { unique: true });
 
   return {
     ...createBaseHelpers(),
@@ -178,6 +190,26 @@ async function createMongoEventStore(mongoUri) {
     },
     async listEvents({ guildId }) {
       return collection.find({ guildId }).sort({ id: 1 }).toArray();
+    },
+    async getGuildSettings({ guildId }) {
+      const settings = await settingsCollection.findOne({ guildId });
+      if (!settings) {
+        return { weekStartDay: 1 };
+      }
+
+      return {
+        weekStartDay:
+          typeof settings.weekStartDay === "number" ? settings.weekStartDay : 1,
+      };
+    },
+    async setWeekStartDay({ guildId, weekStartDay }) {
+      await settingsCollection.updateOne(
+        { guildId },
+        { $set: { guildId, weekStartDay } },
+        { upsert: true }
+      );
+
+      return { weekStartDay };
     },
     async deleteEvent({ guildId, id }) {
       const result = await collection.findOneAndDelete({ guildId, id });

@@ -53,6 +53,8 @@ npm start
 - `/task add title:<text>` -> add a task
 - `/task list` -> show open tasks for your server
 - `/task done id:<number>` -> mark a task as done
+- `/weekstart show` -> show the configured first day of week
+- `/weekstart set day:<weekday>` -> set the first day of week (Manage Server required)
 - `/event create` -> create a recurring weekly event announcement
 - `/event list` -> list configured recurring events
 - `/event remove id:<number>` -> remove a recurring event
@@ -63,7 +65,7 @@ npm start
 - `start` -> event start time (`HH:MM`, 24h)
 - `end` -> event end time (`HH:MM`, 24h)
 - `description` -> event text shown in the announcement message
-- `post_day` -> weekday when the bot should post each weekly event
+- `post_day` -> weekday when the bot should post each weekly event (optional: defaults to `/weekstart` setting)
 - `post_time` -> time when the bot should post each week
 - `channel` (optional) -> channel where event announcements are posted
 

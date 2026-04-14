@@ -97,7 +97,7 @@ module.exports = {
           let configured = option
             .setName("post_day")
             .setDescription("Day of week to post this event")
-            .setRequired(true);
+            .setRequired(false);
 
           for (const weekday of WEEKDAYS) {
             configured = configured.addChoices({
@@ -155,7 +155,7 @@ module.exports = {
       const startInput = interaction.options.getString("start", true);
       const endInput = interaction.options.getString("end", true);
       const description = interaction.options.getString("description", true);
-      const postDay = interaction.options.getInteger("post_day", true);
+      const postDayInput = interaction.options.getInteger("post_day");
       const postTimeInput = interaction.options.getString("post_time", true);
       const targetChannel =
         interaction.options.getChannel("channel") ?? interaction.channel;
@@ -201,6 +201,10 @@ module.exports = {
         });
         return;
       }
+
+      const guildSettings = await eventStore.getGuildSettings({ guildId });
+      const postDay =
+        postDayInput ?? (guildSettings?.weekStartDay ?? 1);
 
       const referenceDate = buildPostingReferenceDate(timezoneOffset);
       const firstPostAtLocal = eventStore.computeNextPostAt({
