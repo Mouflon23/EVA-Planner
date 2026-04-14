@@ -20,4 +20,6 @@ module.exports = {
   CLIENT_ID: process.env.CLIENT_ID,
   GUILD_ID: process.env.GUILD_ID,
   MONGODB_URI: process.env.MONGODB_URI,
+  SCHEDULER_POLL_SECONDS: Number(process.env.SCHEDULER_POLL_SECONDS ?? 60),
+  EVENT_TIMEZONE: process.env.EVENT_TIMEZONE || "UTC",
 };

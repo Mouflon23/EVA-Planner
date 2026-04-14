@@ -4,25 +4,34 @@ const {
   Client,
   Collection,
   GatewayIntentBits,
+  Partials,
   Events,
 } = require("discord.js");
 const {
   validateEnv,
   DISCORD_TOKEN,
   MONGODB_URI,
+  SCHEDULER_POLL_SECONDS,
+  EVENT_TIMEZONE,
 } = require("./config");
 const { createTaskStore } = require("./store/taskStore");
+const { createEventStore } = require("./store/eventStore");
+const { startRecurringEventPosting } = require("./events/postRecurringEvents");
 
 validateEnv();
 
 async function main() {
   const taskStore = await createTaskStore(MONGODB_URI);
+  const eventStore = await createEventStore(MONGODB_URI);
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
   });
 
   client.commands = new Collection();
   client.taskStore = taskStore;
+  client.eventStore = eventStore;
+  client.timezoneLabel = EVENT_TIMEZONE;
 
   const commandsPath = path.join(__dirname, "commands");
   const commandFiles = fs
@@ -37,6 +46,7 @@ async function main() {
 
   client.once(Events.ClientReady, (readyClient) => {
     console.log(`Logged in as ${readyClient.user.tag}`);
+    startRecurringEventPosting(readyClient, SCHEDULER_POLL_SECONDS);
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
