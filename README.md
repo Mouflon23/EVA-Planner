@@ -1,7 +1,7 @@
 # EVA Planner Discord Bot
 
 Discord bot starter for the EVA team with:
-- Slash commands (`/ping`, `/checkin`, `/task add`, `/task list`, `/event ...`)
+- Slash commands (`/ping`, `/checkin`, `/weekstart`, `/event ...`)
 - Weekly recurring event announcements
 - Reaction-based RSVP on posted event messages
 - Optional MongoDB-backed storage
@@ -34,7 +34,7 @@ Required variables:
 - `GUILD_ID` - target server ID where slash commands are deployed
 
 Optional variable:
-- `MONGODB_URI` - if set, tasks are persisted in MongoDB. If not set, tasks are in-memory only.
+- `MONGODB_URI` - if set, events/settings are persisted in MongoDB. If not set, data is in-memory only.
 - `EVENT_TIMEZONE` - timezone label for event schedule display and parsing (default: `UTC`, also supports `UTC+2`, `UTC-05:30`, etc.)
 - `SCHEDULER_POLL_SECONDS` - how often the recurring event scheduler checks for due posts (default: `60`)
 
@@ -50,9 +50,6 @@ npm start
 
 - `/ping` -> health check
 - `/checkin status:<text>` -> share EVA team check-in update
-- `/task add title:<text>` -> add a task
-- `/task list` -> show open tasks for your server
-- `/task done id:<number>` -> mark a task as done
 - `/weekstart show` -> show the configured first day of week
 - `/weekstart set day:<weekday>` -> set the first day of week (Manage Server required)
 - `/event create` -> create a recurring weekly event announcement
@@ -77,14 +74,8 @@ Players can react directly to RSVP.
 
 ## MongoDB notes
 
-The bot can run without MongoDB. To persist tasks and recurring events, set `MONGODB_URI` in `.env`.
+The bot can run without MongoDB. To persist recurring events and week-start settings, set `MONGODB_URI` in `.env`.
 
 Collection used:
 - Database: `eva_planner`
-- Collections: `tasks`, `events`
-
-Each task stores:
-- guild ID
-- creator user ID
-- title
-- creation timestamp
+- Collections: `events`, `guild_settings`

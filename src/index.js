@@ -14,14 +14,12 @@ const {
   SCHEDULER_POLL_SECONDS,
   EVENT_TIMEZONE,
 } = require("./config");
-const { createTaskStore } = require("./store/taskStore");
 const { createEventStore } = require("./store/eventStore");
 const { startRecurringEventPosting } = require("./events/postRecurringEvents");
 
 validateEnv();
 
 async function main() {
-  const taskStore = await createTaskStore(MONGODB_URI);
   const eventStore = await createEventStore(MONGODB_URI);
   const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions],
@@ -29,7 +27,6 @@ async function main() {
   });
 
   client.commands = new Collection();
-  client.taskStore = taskStore;
   client.eventStore = eventStore;
   client.timezoneLabel = EVENT_TIMEZONE;
 
@@ -64,7 +61,7 @@ async function main() {
     }
 
     try {
-      await command.execute(interaction, { taskStore });
+      await command.execute(interaction);
     } catch (error) {
       console.error(error);
       if (interaction.replied || interaction.deferred) {
