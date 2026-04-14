@@ -1,0 +1,27 @@
+{
+  "name": "eva-discord-bot",
+  "version": "1.0.0",
+  "description": "Planner for EVA Team",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy:commands": "node src/deploy-commands.js",
+    "test": "echo \"No automated tests yet\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mouflon23/EVA-Planner.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Mouflon23/EVA-Planner/issues"
+  },
+  "homepage": "https://github.com/Mouflon23/EVA-Planner#readme",
+  "dependencies": {
+    "discord.js": "^14.26.2",
+    "dotenv": "^17.4.2",
+    "mongodb": "^7.1.1"
+  }
+}
