@@ -77,6 +77,26 @@ function createBaseHelpers() {
   };
 }
 
+function normalizeRsvpByUser(value) {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+  return value;
+}
+
+function normalizeSlots(slots) {
+  if (!Array.isArray(slots)) {
+    return [];
+  }
+  return slots
+    .filter((slot) => slot && typeof slot === "object")
+    .map((slot) => ({
+      timeLabel: slot.timeLabel,
+      period: slot.period,
+      reservationUrl: slot.reservationUrl || null,
+    }));
+}
+
 function createMemoryEventStore() {
   const eventsByGuild = new Map();
   const settingsByGuild = new Map();
@@ -87,6 +107,8 @@ function createMemoryEventStore() {
     async createEvent(eventInput) {
       const event = {
         ...eventInput,
+        slots: normalizeSlots(eventInput.slots),
+        rsvpByUser: normalizeRsvpByUser(eventInput.rsvpByUser),
         id: nextId++,
         createdAt: new Date().toISOString(),
       };
@@ -98,6 +120,49 @@ function createMemoryEventStore() {
     async listEvents({ guildId }) {
       const guildEvents = eventsByGuild.get(guildId) ?? [];
       return [...guildEvents].sort((a, b) => a.id - b.id);
+    },
+    async getEventById({ guildId, id }) {
+      const guildEvents = eventsByGuild.get(guildId) ?? [];
+      return guildEvents.find((event) => event.id === id) ?? null;
+    },
+    async getEventByMessage({ guildId, messageId }) {
+      const guildEvents = eventsByGuild.get(guildId) ?? [];
+      return guildEvents.find((event) => event.lastMessageId === messageId) ?? null;
+    },
+    async updateEventBasics({ guildId, id, title, description }) {
+      const guildEvents = eventsByGuild.get(guildId) ?? [];
+      const event = guildEvents.find((item) => item.id === id);
+      if (!event) {
+        return null;
+      }
+
+      event.title = title;
+      event.description = description;
+      return event;
+    },
+    async updateEventDetails({ guildId, id, title, description, slots }) {
+      const guildEvents = eventsByGuild.get(guildId) ?? [];
+      const event = guildEvents.find((item) => item.id === id);
+      if (!event) {
+        return null;
+      }
+
+      event.title = title;
+      event.description = description;
+      event.slots = normalizeSlots(slots);
+      return event;
+    },
+    async setRsvp({ guildId, id, userId, status }) {
+      const guildEvents = eventsByGuild.get(guildId) ?? [];
+      const event = guildEvents.find((item) => item.id === id);
+      if (!event) {
+        return null;
+      }
+
+      const nextRsvp = normalizeRsvpByUser(event.rsvpByUser);
+      nextRsvp[userId] = status;
+      event.rsvpByUser = nextRsvp;
+      return event;
     },
     async getGuildSettings({ guildId }) {
       return settingsByGuild.get(guildId) ?? { weekStartDay: 1 };
@@ -153,6 +218,7 @@ function createMemoryEventStore() {
       event.nextOccurrenceDate = nextOccurrenceDate;
       event.lastPostedAt = lastPostedAt;
       event.lastMessageId = lastMessageId;
+      event.rsvpByUser = {};
       return event;
     },
     async close() {},
@@ -167,6 +233,7 @@ async function createMongoEventStore(mongoUri) {
   const settingsCollection = client.db("eva_planner").collection("guild_settings");
   await collection.createIndex({ guildId: 1, id: 1 }, { unique: true });
   await collection.createIndex({ nextPostAt: 1 });
+  await collection.createIndex({ guildId: 1, lastMessageId: 1 });
   await settingsCollection.createIndex({ guildId: 1 }, { unique: true });
 
   return {
@@ -181,6 +248,8 @@ async function createMongoEventStore(mongoUri) {
 
       const event = {
         ...eventInput,
+        slots: normalizeSlots(eventInput.slots),
+        rsvpByUser: normalizeRsvpByUser(eventInput.rsvpByUser),
         id: nextId,
         createdAt: new Date().toISOString(),
       };
@@ -190,6 +259,42 @@ async function createMongoEventStore(mongoUri) {
     },
     async listEvents({ guildId }) {
       return collection.find({ guildId }).sort({ id: 1 }).toArray();
+    },
+    async getEventById({ guildId, id }) {
+      return collection.findOne({ guildId, id });
+    },
+    async getEventByMessage({ guildId, messageId }) {
+      return collection.findOne({ guildId, lastMessageId: messageId });
+    },
+    async updateEventBasics({ guildId, id, title, description }) {
+      const result = await collection.findOneAndUpdate(
+        { guildId, id },
+        { $set: { title, description } },
+        { returnDocument: "after" }
+      );
+      return normalizeFindOneResult(result);
+    },
+    async updateEventDetails({ guildId, id, title, description, slots }) {
+      const result = await collection.findOneAndUpdate(
+        { guildId, id },
+        {
+          $set: {
+            title,
+            description,
+            slots: normalizeSlots(slots),
+          },
+        },
+        { returnDocument: "after" }
+      );
+      return normalizeFindOneResult(result);
+    },
+    async setRsvp({ guildId, id, userId, status }) {
+      const result = await collection.findOneAndUpdate(
+        { guildId, id },
+        { $set: { [`rsvpByUser.${userId}`]: status } },
+        { returnDocument: "after" }
+      );
+      return normalizeFindOneResult(result);
     },
     async getGuildSettings({ guildId }) {
       const settings = await settingsCollection.findOne({ guildId });
@@ -237,6 +342,7 @@ async function createMongoEventStore(mongoUri) {
             nextOccurrenceDate,
             lastPostedAt,
             lastMessageId,
+            rsvpByUser: {},
           },
         },
         { returnDocument: "after" }

@@ -2,8 +2,9 @@
 
 Discord bot starter for the EVA team with:
 - Slash commands (`/ping`, `/checkin`, `/weekstart`, `/event ...`)
-- Weekly recurring event announcements
-- Reaction-based RSVP on posted event messages
+- Weekly recurring EVA session announcements
+- Embed-based session messages (slots, calendar link, RSVP columns)
+- Interactive RSVP + edit + delete buttons
 - Optional MongoDB-backed storage
 - Fast local setup and command deployment
 
@@ -52,29 +53,40 @@ npm start
 - `/checkin status:<text>` -> share EVA team check-in update
 - `/weekstart show` -> show the configured first day of week
 - `/weekstart set day:<weekday>` -> set the first day of week (Manage Server required)
-- `/event create` -> create a recurring weekly event announcement
+- `/event create` -> create a recurring weekly EVA session announcement
 - `/event list` -> list configured recurring events
 - `/event remove id:<number>` -> remove a recurring event
 
 ### `/event create` fields
 
 - `date` -> first event date (`YYYY-MM-DD`)
-- `start` -> event start time (`HH:MM`, 24h)
-- `end` -> event end time (`HH:MM`, 24h)
-- `description` -> event text shown in the announcement message
+- `title` -> session title (example: `Session Mercredi`)
+- `start` -> event start time (`HH:MM` or `HHhMM`)
+- `end` -> event end time (`HH:MM` or `HHhMM`)
+- `description` -> text shown in the session embed
+- `slots` -> comma-separated reservation slots (`20h40 HP, 21h20 HP, 22h00 HC`)
+- `reservation_url` (optional) -> default EVA reservation URL for all slots
+- `mention` (optional) -> `none`, `@everyone`, or `@here` when posting
 - `post_day` -> weekday when the bot should post each weekly event (optional: defaults to `/weekstart` setting)
 - `post_time` -> time when the bot should post each week
 - `channel` (optional) -> channel where event announcements are posted
 
-When the bot posts the event message, it automatically adds:
-- `✅` = available
-- `❌` = not available
+When the bot posts the session message, it includes:
+- rich embed layout (title, slots with HP/HC, time range, Google calendar link)
+- RSVP columns:
+  - `✅ Accepted`
+  - `❌ Declined`
+  - `❓ Tentative`
+- action buttons:
+  - `Accept`, `Decline`, `Tentative`
+  - `Edit` (creator/admin)
+  - `Delete` (creator/admin)
 
-Players can react directly to RSVP.
+Button clicks update counts and participant lists in-place.
 
 ## MongoDB notes
 
-The bot can run without MongoDB. To persist recurring events and week-start settings, set `MONGODB_URI` in `.env`.
+The bot can run without MongoDB. To persist recurring sessions and week-start settings, set `MONGODB_URI` in `.env`.
 
 Collection used:
 - Database: `eva_planner`

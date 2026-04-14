@@ -16,6 +16,10 @@ const {
 } = require("./config");
 const { createEventStore } = require("./store/eventStore");
 const { startRecurringEventPosting } = require("./events/postRecurringEvents");
+const {
+  handleEventButtons,
+  handleEventEditModal,
+} = require("./events/handleEventButtons");
 
 validateEnv();
 
@@ -47,6 +51,28 @@ async function main() {
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
+    if (interaction.isModalSubmit()) {
+      const handled = await handleEventEditModal({
+        interaction,
+        eventStore,
+        timezoneLabel: client.timezoneLabel || "UTC",
+      });
+      if (handled) {
+        return;
+      }
+    }
+
+    if (interaction.isButton()) {
+      const handled = await handleEventButtons({
+        interaction,
+        eventStore,
+        timezoneLabel: client.timezoneLabel || "UTC",
+      });
+      if (handled) {
+        return;
+      }
+    }
+
     if (!interaction.isChatInputCommand()) {
       return;
     }

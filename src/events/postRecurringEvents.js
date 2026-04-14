@@ -1,27 +1,9 @@
-const AVAILABLE_EMOJI = "✅";
-const NOT_AVAILABLE_EMOJI = "❌";
+const { buildEventMessagePayload } = require("./eventMessagePayload");
+
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function addWeeks(date, weeks) {
   return new Date(date.getTime() + weeks * WEEK_MS);
-}
-
-function weekdayName(index) {
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][index] ?? "Unknown";
-}
-
-function buildEventText(event, timezoneLabel) {
-  return [
-    `📣 **EVA Event #${event.id}**`,
-    `**Date:** ${event.nextOccurrenceDate}`,
-    `**Time:** ${event.startTime} - ${event.endTime} (${timezoneLabel})`,
-    `**Description:** ${event.description}`,
-    "",
-    `React with ${AVAILABLE_EMOJI} if you are available.`,
-    `React with ${NOT_AVAILABLE_EMOJI} if you are not available.`,
-    "",
-    `Posted every **${weekdayName(event.postWeekday)} ${event.postTime} (${timezoneLabel})**.`,
-  ].join("\n");
 }
 
 async function postDueEvents(client) {
@@ -41,9 +23,17 @@ async function postDueEvents(client) {
         continue;
       }
 
-      const message = await channel.send(buildEventText(event, timezoneLabel));
-      await message.react(AVAILABLE_EMOJI);
-      await message.react(NOT_AVAILABLE_EMOJI);
+      const payload = buildEventMessagePayload({
+        event,
+        timezoneLabel,
+        rsvpSummary: {
+          accepted: [],
+          declined: [],
+          tentative: [],
+        },
+        allowMentionPing: true,
+      });
+      const message = await channel.send(payload);
 
       let nextPostAtDate = addWeeks(new Date(event.nextPostAt), 1);
       let nextOccurrenceDate = eventStore.addDaysToDateOnly(
@@ -91,7 +81,5 @@ function startRecurringEventPosting(client, pollSeconds = 60) {
 }
 
 module.exports = {
-  AVAILABLE_EMOJI,
-  NOT_AVAILABLE_EMOJI,
   startRecurringEventPosting,
 };
