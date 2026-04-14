@@ -12,4 +12,4 @@ Use this as a quick checklist in Cursor:
 6. Run `npm start` to start the bot.
 7. Use `/weekstart show` or `/weekstart set day:<weekday>` to configure week start day.
 8. Create recurring sessions with `/event create` (title, slots like `20h40 HP, 21h20 HC`, optional mention + reservation URL).
-9. Players RSVP directly on the posted embed with buttons: ✅ Accept / ❌ Decline / ❓ Tentative, plus Edit/Delete controls.
+9. Players RSVP directly on the posted embed with buttons: ✅ Accept / ❌ Decline, plus Edit/Delete controls.

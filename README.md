@@ -76,9 +76,8 @@ When the bot posts the session message, it includes:
 - RSVP columns:
   - `✅ Accepted`
   - `❌ Declined`
-  - `❓ Tentative`
 - action buttons:
-  - `Accept`, `Decline`, `Tentative`
+  - `Accept`, `Decline`
   - `Edit` (creator/admin)
   - `Delete` (creator/admin)
 

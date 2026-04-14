@@ -25,9 +25,6 @@ function statusFromAction(action) {
   if (action === RSVP_ACTIONS.DECLINED) {
     return "declined";
   }
-  if (action === RSVP_ACTIONS.TENTATIVE) {
-    return "tentative";
-  }
   return null;
 }
 
@@ -35,7 +32,6 @@ function summarizeRsvps(rsvpByUser) {
   const summary = {
     accepted: [],
     declined: [],
-    tentative: [],
   };
 
   for (const [userId, status] of Object.entries(rsvpByUser || {})) {
@@ -43,8 +39,6 @@ function summarizeRsvps(rsvpByUser) {
       summary.accepted.push(userId);
     } else if (status === "declined") {
       summary.declined.push(userId);
-    } else if (status === "tentative") {
-      summary.tentative.push(userId);
     }
   }
 

@@ -8,7 +8,6 @@ const {
 const RSVP_ACTIONS = {
   ACCEPTED: "accepted",
   DECLINED: "declined",
-  TENTATIVE: "tentative",
 };
 
 const CONTROL_ACTIONS = {
@@ -216,12 +215,10 @@ function buildEventMessagePayload({
   const summary = rsvpSummary || {
     accepted: [],
     declined: [],
-    tentative: [],
   };
 
   const accepted = summary.accepted || [];
   const declined = summary.declined || [];
-  const tentative = summary.tentative || [];
 
   const calendarUrl = buildGoogleCalendarUrl(event, timezoneLabel);
   const timeLine = formatOccurrenceLine(
@@ -250,11 +247,6 @@ function buildEventMessagePayload({
         name: `❌ Declined (${declined.length})`,
         value: participantList(declined),
         inline: true,
-      },
-      {
-        name: `❓ Tentative (${tentative.length})`,
-        value: participantList(tentative),
-        inline: true,
       }
     )
     .setFooter({
@@ -269,11 +261,7 @@ function buildEventMessagePayload({
     new ButtonBuilder()
       .setCustomId(actionCustomId(RSVP_ACTIONS.DECLINED))
       .setStyle(ButtonStyle.Danger)
-      .setLabel("Decline"),
-    new ButtonBuilder()
-      .setCustomId(actionCustomId(RSVP_ACTIONS.TENTATIVE))
-      .setStyle(ButtonStyle.Primary)
-      .setLabel("Tentative")
+      .setLabel("Decline")
   );
 
   const controlRow = new ActionRowBuilder().addComponents(

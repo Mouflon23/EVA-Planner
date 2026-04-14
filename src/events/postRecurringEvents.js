@@ -29,7 +29,6 @@ async function postDueEvents(client) {
         rsvpSummary: {
           accepted: [],
           declined: [],
-          tentative: [],
         },
         allowMentionPing: true,
       });
