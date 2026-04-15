@@ -93,6 +93,12 @@ module.exports = {
             .setRequired(true)
             .setMaxLength(500)
         )
+        .addStringOption((option) =>
+          option
+            .setName("post_time")
+            .setDescription("Time to post each week in HH:MM (24h, local timezone)")
+            .setRequired(true)
+        )
         .addIntegerOption((option) => {
           let configured = option
             .setName("post_day")
@@ -107,12 +113,6 @@ module.exports = {
           }
           return configured;
         })
-        .addStringOption((option) =>
-          option
-            .setName("post_time")
-            .setDescription("Time to post each week in HH:MM (24h, local timezone)")
-            .setRequired(true)
-        )
         .addChannelOption((option) =>
           option
             .setName("channel")
