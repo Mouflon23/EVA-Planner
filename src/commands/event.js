@@ -110,6 +110,12 @@ module.exports = {
         )
         .addStringOption((option) =>
           option
+            .setName("post_time")
+            .setDescription("Time to post each week in HH:MM (24h, local timezone)")
+            .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
             .setName("reservation_url")
             .setDescription("Default EVA reservation URL for all slots")
             .setRequired(false)
@@ -153,12 +159,6 @@ module.exports = {
           }
           return configured;
         })
-        .addStringOption((option) =>
-          option
-            .setName("post_time")
-            .setDescription("Time to post each week in HH:MM (24h, local timezone)")
-            .setRequired(true)
-        )
         .addChannelOption((option) =>
           option
             .setName("channel")
