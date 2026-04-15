@@ -4,6 +4,9 @@ const {
   SlashCommandBuilder,
 } = require("discord.js");
 const { parseSlotsInput, slotsSummary } = require("../events/slotParser");
+const {
+  buildEventMessagePayload,
+} = require("../events/eventMessagePayload");
 
 const BRAND_COLOR = 0x6b2d87;
 const SUCCESS_COLOR = 0x57f287;
@@ -188,6 +191,17 @@ module.exports = {
       subcommand
         .setName("remove")
         .setDescription("Remove a configured recurring event")
+        .addIntegerOption((option) =>
+          option
+            .setName("id")
+            .setDescription("Event ID from /event list")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("publish")
+        .setDescription("Publish an event now to its channel")
         .addIntegerOption((option) =>
           option
             .setName("id")
@@ -455,6 +469,77 @@ module.exports = {
           removed.title
             ? `**${removed.title}** has been removed.`
             : `Event #${id} has been removed.`
+        )
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed] });
+      return;
+    }
+
+    if (subcommand === "publish") {
+      const id = interaction.options.getInteger("id", true);
+      const event = await eventStore.getEventById({ guildId, id });
+
+      if (!event) {
+        await interaction.reply({
+          embeds: [errorEmbed(`Event **#${id}** was not found.`)],
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const timezoneLabel = interaction.client.timezoneLabel || "UTC";
+
+      let channel;
+      try {
+        channel = await interaction.client.channels.fetch(event.channelId);
+      } catch {
+        channel = null;
+      }
+
+      if (!channel || !channel.isTextBased()) {
+        await interaction.reply({
+          embeds: [
+            errorEmbed(
+              `Could not find channel <#${event.channelId}>. Make sure the bot has access.`
+            ),
+          ],
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const rsvpByUser = event.rsvpByUser || {};
+      const accepted = Object.entries(rsvpByUser)
+        .filter(([, s]) => s === "accepted")
+        .map(([uid]) => uid);
+      const declined = Object.entries(rsvpByUser)
+        .filter(([, s]) => s === "declined")
+        .map(([uid]) => uid);
+
+      const payload = buildEventMessagePayload({
+        event,
+        rsvpSummary: { accepted, declined },
+        timezoneLabel,
+        allowMentionPing: true,
+      });
+
+      const message = await channel.send(payload);
+
+      await eventStore.markEventPosted({
+        guildId,
+        id: event.id,
+        nextPostAt: event.nextPostAt,
+        nextOccurrenceDate: event.nextOccurrenceDate,
+        lastPostedAt: new Date().toISOString(),
+        lastMessageId: message.id,
+      });
+
+      const embed = new EmbedBuilder()
+        .setColor(SUCCESS_COLOR)
+        .setTitle(`\u{1F4E2} Event #${id} Published`)
+        .setDescription(
+          `**${event.title || "Session"}** has been posted to <#${event.channelId}>.`
         )
         .setTimestamp();
 
