@@ -77,6 +77,11 @@ function errorEmbed(message) {
 }
 
 module.exports = {
+  normalizeHour,
+  weekdayName,
+  parseTimezoneOffset,
+  buildPostingReferenceDate,
+  parseIsoDate,
   data: new SlashCommandBuilder()
     .setName("event")
     .setDescription("Manage recurring EVA event announcements")
