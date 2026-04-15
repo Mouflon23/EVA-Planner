@@ -201,6 +201,7 @@ module.exports = {
             .setName("id")
             .setDescription("Event ID from /event list")
             .setRequired(true)
+            .setAutocomplete(true)
         )
     )
     .addSubcommand((subcommand) =>
@@ -212,6 +213,7 @@ module.exports = {
             .setName("id")
             .setDescription("Event ID from /event list")
             .setRequired(true)
+            .setAutocomplete(true)
         )
     ),
   async execute(interaction) {
@@ -550,5 +552,36 @@ module.exports = {
 
       await interaction.reply({ embeds: [embed] });
     }
+  },
+  async autocomplete(interaction) {
+    const eventStore = interaction.client.eventStore;
+    const guildId = interaction.guildId;
+    if (!eventStore || !guildId) {
+      await interaction.respond([]);
+      return;
+    }
+
+    const focused = interaction.options.getFocused(true);
+    if (focused.name !== "id") {
+      await interaction.respond([]);
+      return;
+    }
+
+    const events = await eventStore.listEvents({ guildId });
+    const query = String(focused.value).toLowerCase();
+
+    const choices = events
+      .filter((event) => {
+        const idStr = String(event.id);
+        const title = (event.title || "").toLowerCase();
+        return idStr.startsWith(query) || title.includes(query) || !query;
+      })
+      .slice(0, 25)
+      .map((event) => ({
+        name: `#${event.id} — ${event.title || "Session"} (${event.nextOccurrenceDate || event.eventDate})`,
+        value: event.id,
+      }));
+
+    await interaction.respond(choices);
   },
 };

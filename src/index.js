@@ -73,6 +73,18 @@ async function main() {
       }
     }
 
+    if (interaction.isAutocomplete()) {
+      const command = interaction.client.commands.get(interaction.commandName);
+      if (command?.autocomplete) {
+        try {
+          await command.autocomplete(interaction);
+        } catch (error) {
+          console.error("Autocomplete error:", error);
+        }
+      }
+      return;
+    }
+
     if (!interaction.isChatInputCommand()) {
       return;
     }

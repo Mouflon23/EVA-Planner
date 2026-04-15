@@ -4,7 +4,9 @@ const {
   parseTimezoneOffset,
   buildPostingReferenceDate,
   parseIsoDate,
+  autocomplete,
 } = require("../src/commands/event");
+const { createEventStore } = require("../src/store/eventStore");
 
 describe("normalizeHour", () => {
   it("parses HH:MM colon format", () => {
@@ -115,5 +117,144 @@ describe("parseIsoDate", () => {
   it("returns null for invalid date string", () => {
     expect(parseIsoDate("not-a-date")).toBeNull();
     expect(parseIsoDate("")).toBeNull();
+  });
+});
+
+describe("autocomplete", () => {
+  let store;
+  const guildId = "guild-test";
+
+  beforeEach(async () => {
+    store = await createEventStore();
+    await store.createEvent({
+      guildId,
+      channelId: "c1",
+      title: "Weekly Raid",
+      description: "D",
+      slots: [],
+      mentionMode: "none",
+      rsvpByUser: {},
+      eventDate: "2025-06-15",
+      startTime: "20:00",
+      endTime: "22:00",
+      postWeekday: 1,
+      postTime: "18:00",
+      nextPostAt: "2025-06-16T18:00:00.000Z",
+      nextOccurrenceDate: "2025-06-15",
+      createdById: "u1",
+      createdByName: "U1",
+    });
+    await store.createEvent({
+      guildId,
+      channelId: "c1",
+      title: "PvP Night",
+      description: "D",
+      slots: [],
+      mentionMode: "none",
+      rsvpByUser: {},
+      eventDate: "2025-06-16",
+      startTime: "21:00",
+      endTime: "23:00",
+      postWeekday: 2,
+      postTime: "19:00",
+      nextPostAt: "2025-06-17T19:00:00.000Z",
+      nextOccurrenceDate: "2025-06-16",
+      createdById: "u1",
+      createdByName: "U1",
+    });
+  });
+
+  afterEach(async () => {
+    await store.close();
+  });
+
+  function mockAutocompleteInteraction(focusedValue) {
+    const responded = [];
+    return {
+      client: { eventStore: store },
+      guildId,
+      options: {
+        getFocused: (withInfo) =>
+          withInfo ? { name: "id", value: focusedValue } : focusedValue,
+      },
+      respond: jest.fn(async (choices) => responded.push(...choices)),
+      _responded: responded,
+    };
+  }
+
+  it("returns all events when query is empty", async () => {
+    const interaction = mockAutocompleteInteraction("");
+    await autocomplete(interaction);
+    expect(interaction.respond).toHaveBeenCalledTimes(1);
+    expect(interaction._responded).toHaveLength(2);
+    expect(interaction._responded[0].name).toContain("Weekly Raid");
+    expect(interaction._responded[1].name).toContain("PvP Night");
+  });
+
+  it("filters by event ID prefix", async () => {
+    const interaction = mockAutocompleteInteraction("1");
+    await autocomplete(interaction);
+    expect(interaction._responded).toHaveLength(1);
+    expect(interaction._responded[0].value).toBe(1);
+  });
+
+  it("filters by title substring (case-insensitive)", async () => {
+    const interaction = mockAutocompleteInteraction("pvp");
+    await autocomplete(interaction);
+    expect(interaction._responded).toHaveLength(1);
+    expect(interaction._responded[0].name).toContain("PvP Night");
+  });
+
+  it("returns empty when no events match", async () => {
+    const interaction = mockAutocompleteInteraction("zzz");
+    await autocomplete(interaction);
+    expect(interaction._responded).toHaveLength(0);
+  });
+
+  it("responds empty when eventStore is null", async () => {
+    const interaction = mockAutocompleteInteraction("");
+    interaction.client.eventStore = null;
+    await autocomplete(interaction);
+    expect(interaction.respond).toHaveBeenCalledWith([]);
+  });
+
+  it("responds empty for non-id focused option", async () => {
+    const interaction = mockAutocompleteInteraction("");
+    interaction.options.getFocused = (withInfo) =>
+      withInfo ? { name: "other", value: "" } : "";
+    await autocomplete(interaction);
+    expect(interaction.respond).toHaveBeenCalledWith([]);
+  });
+
+  it("includes event date in choice name", async () => {
+    const interaction = mockAutocompleteInteraction("");
+    await autocomplete(interaction);
+    expect(interaction._responded[0].name).toContain("2025-06-15");
+  });
+
+  it("limits results to 25 entries", async () => {
+    for (let i = 0; i < 30; i++) {
+      await store.createEvent({
+        guildId,
+        channelId: "c1",
+        title: `Event ${i}`,
+        description: "D",
+        slots: [],
+        mentionMode: "none",
+        rsvpByUser: {},
+        eventDate: "2025-07-01",
+        startTime: "20:00",
+        endTime: "22:00",
+        postWeekday: 1,
+        postTime: "18:00",
+        nextPostAt: "2025-07-01T18:00:00.000Z",
+        nextOccurrenceDate: "2025-07-01",
+        createdById: "u1",
+        createdByName: "U1",
+      });
+    }
+    const interaction = mockAutocompleteInteraction("");
+    await autocomplete(interaction);
+    expect(interaction._responded.length).toBeLessThanOrEqual(25);
   });
 });
