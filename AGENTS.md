@@ -4,14 +4,14 @@
 
 ### Overview
 
-EVA-Planner is a Discord bot (Node.js / discord.js v14) for team coordination — slash commands, task management, recurring event scheduling, and reaction-based RSVP. It is a single-service application with no build step (plain CommonJS JavaScript).
+EVA-Planner is a Discord bot (Node.js / discord.js v14) for team coordination — slash commands, recurring event scheduling with embeds, button-based RSVP, and slot management. Single-service application with no build step (plain CommonJS JavaScript).
 
 ### Running the bot
 
 See `README.md` for full setup. Key commands:
 
 - `npm install` — install dependencies
-- `npm run deploy:commands` — register slash commands with Discord (one-time, requires valid credentials)
+- `npm run deploy:commands` — register slash commands with Discord (requires valid credentials)
 - `npm start` — start the bot (`node src/index.js`)
 - `npm test` — placeholder (no automated tests yet)
 
@@ -22,8 +22,8 @@ The bot **cannot start** without these environment variables (validated at start
 | Secret | Purpose |
 |---|---|
 | `DISCORD_TOKEN` | Bot token from Discord Developer Portal |
-| `CLIENT_ID` | Discord application/client ID |
-| `GUILD_ID` | Target Discord server ID for slash command deployment |
+| `CLIENT_ID` | Discord application/client ID (`1493639586365177896`) |
+| `GUILD_ID` | Target Discord server ID (`1077529031693582426`) |
 
 These must be added as Cursor Cloud secrets or set in `.env` (copied from `.env.example`).
 
@@ -37,8 +37,10 @@ These must be added as Cursor Cloud secrets or set in `.env` (copied from `.env.
 
 ### Key caveats
 
-- The application code lives on the `cursor/discord-bot-starter-aa5c` branch, not `main`. The `main` branch only has LICENSE and README.
 - There is no linter, formatter, or CI configured in this repository.
 - The `.env` file is git-ignored. Copy `.env.example` to `.env` and fill in real credentials before running.
 - Without valid Discord credentials, both `npm start` and `npm run deploy:commands` will fail with auth errors — this is expected behavior, not a bug.
 - MongoDB is optional. The bot gracefully falls back to in-memory storage if `MONGODB_URI` is not set or the connection fails.
+- **Known bug**: `src/commands/event.js` has the `post_time` required option defined after optional options. Discord API rejects this. Fix: move `post_time` immediately after the last required option (`slots`). See PR #4.
+- After pulling code updates, always run `npm run deploy:commands` to re-register slash commands with Discord before restarting the bot.
+- MongoDB Atlas requires the Cloud Agent VM IP to be in the Network Access allowlist. Use `0.0.0.0/0` for development since VM IPs change between sessions.
