@@ -1,4 +1,12 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
+
+const BRAND_COLOR = 0x6b2d87;
+
+const STATUS_CONFIG = {
+  green: { label: "Green - On Track", emoji: "\u{1F7E2}", color: 0x57f287 },
+  yellow: { label: "Yellow - Needs Support", emoji: "\u{1F7E1}", color: 0xfee75c },
+  red: { label: "Red - Blocked", emoji: "\u{1F534}", color: 0xed4245 },
+};
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -25,19 +33,19 @@ module.exports = {
     const status = interaction.options.getString("status");
     const notes =
       interaction.options.getString("notes") || "No additional notes.";
+    const config = STATUS_CONFIG[status];
 
-    const labelByStatus = {
-      green: "Green - On Track",
-      yellow: "Yellow - Needs Support",
-      red: "Red - Blocked",
-    };
+    const embed = new EmbedBuilder()
+      .setColor(config.color)
+      .setTitle(`${config.emoji} EVA Check-In`)
+      .setDescription(`**${config.label}**`)
+      .addFields({ name: "Notes", value: notes, inline: false })
+      .setFooter({
+        text: `Check-in by ${interaction.user.displayName || interaction.user.username}`,
+        iconURL: interaction.user.displayAvatarURL(),
+      })
+      .setTimestamp();
 
-    await interaction.reply({
-      content: [
-        `**EVA Check-In from ${interaction.user}**`,
-        `Status: **${labelByStatus[status]}**`,
-        `Notes: ${notes}`,
-      ].join("\n"),
-    });
+    await interaction.reply({ embeds: [embed] });
   },
 };

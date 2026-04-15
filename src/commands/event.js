@@ -1,5 +1,16 @@
-const { ChannelType, SlashCommandBuilder } = require("discord.js");
+const {
+  ChannelType,
+  EmbedBuilder,
+  SlashCommandBuilder,
+} = require("discord.js");
 const { parseSlotsInput, slotsSummary } = require("../events/slotParser");
+const {
+  buildEventMessagePayload,
+} = require("../events/eventMessagePayload");
+
+const BRAND_COLOR = 0x6b2d87;
+const SUCCESS_COLOR = 0x57f287;
+const ERROR_COLOR = 0xed4245;
 
 const WEEKDAYS = [
   { name: "Sunday", value: 0 },
@@ -59,6 +70,10 @@ function parseIsoDate(value) {
     return null;
   }
   return parsed;
+}
+
+function errorEmbed(message) {
+  return new EmbedBuilder().setColor(ERROR_COLOR).setDescription(message);
 }
 
 module.exports = {
@@ -182,6 +197,17 @@ module.exports = {
             .setDescription("Event ID from /event list")
             .setRequired(true)
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("publish")
+        .setDescription("Publish an event now to its channel")
+        .addIntegerOption((option) =>
+          option
+            .setName("id")
+            .setDescription("Event ID from /event list")
+            .setRequired(true)
+        )
     ),
   async execute(interaction) {
     const eventStore = interaction.client.eventStore;
@@ -190,7 +216,7 @@ module.exports = {
 
     if (!eventStore || !guildId) {
       await interaction.reply({
-        content: "Event store is unavailable in this context.",
+        embeds: [errorEmbed("Event store is unavailable in this context.")],
         ephemeral: true,
       });
       return;
@@ -217,7 +243,7 @@ module.exports = {
       const firstDate = eventStore.parseDateOnly(firstDateInput);
       if (!firstDate) {
         await interaction.reply({
-          content: "Invalid `date`. Use format YYYY-MM-DD.",
+          embeds: [errorEmbed("Invalid `date`. Use format `YYYY-MM-DD`.")],
           ephemeral: true,
         });
         return;
@@ -229,7 +255,7 @@ module.exports = {
 
       if (!startParsed || !endParsed || !postParsed) {
         await interaction.reply({
-          content: "Invalid hour format. Use HH:MM in 24h time.",
+          embeds: [errorEmbed("Invalid hour format. Use `HH:MM` in 24h time.")],
           ephemeral: true,
         });
         return;
@@ -239,7 +265,7 @@ module.exports = {
       const endMinutes = endParsed.hour * 60 + endParsed.minute;
       if (endMinutes <= startMinutes) {
         await interaction.reply({
-          content: "`end` hour must be after `start` hour.",
+          embeds: [errorEmbed("`end` hour must be after `start` hour.")],
           ephemeral: true,
         });
         return;
@@ -248,7 +274,7 @@ module.exports = {
       const parsedSlots = parseSlotsInput(slotsInput, fallbackReservationUrl);
       if (!parsedSlots.slots) {
         await interaction.reply({
-          content: parsedSlots.error || "Invalid slots.",
+          embeds: [errorEmbed(parsedSlots.error || "Invalid slots.")],
           ephemeral: true,
         });
         return;
@@ -256,8 +282,11 @@ module.exports = {
 
       if (mentionMode === "role" && !mentionRole) {
         await interaction.reply({
-          content:
-            "When `mention` is set to Custom role, `mention_role` is required.",
+          embeds: [
+            errorEmbed(
+              "When `mention` is set to **Custom role**, `mention_role` is required."
+            ),
+          ],
           ephemeral: true,
         });
         return;
@@ -267,8 +296,11 @@ module.exports = {
       const timezoneOffset = parseTimezoneOffset(timezoneLabel);
       if (timezoneOffset === null) {
         await interaction.reply({
-          content:
-            "Configured timezone label is invalid. Use UTC or UTC+/-HH[:MM].",
+          embeds: [
+            errorEmbed(
+              "Configured timezone label is invalid. Use `UTC` or `UTC+/-HH[:MM]`."
+            ),
+          ],
           ephemeral: true,
         });
         return;
@@ -310,18 +342,50 @@ module.exports = {
         rsvpByUser: {},
       });
 
-      await interaction.reply(
-        [
-          `Recurring event #${created.id} created.`,
-          `Title: **${created.title}**`,
-          `First occurrence: **${created.eventDate}**`,
-          `Time: **${created.startTime}-${created.endTime} ${timezoneLabel}**`,
-          `Location: ${created.location || "-"}`,
-          `Posts every **${weekdayName(created.postWeekday)} ${created.postTime} ${timezoneLabel}** in <#${created.channelId}>.`,
-          `Slots: ${slotsSummary(created.slots)}`,
-          `Description: ${created.description}`,
-        ].join("\n")
-      );
+      const embed = new EmbedBuilder()
+        .setColor(SUCCESS_COLOR)
+        .setTitle(`\u{2705} Event #${created.id} Created`)
+        .setDescription(created.description)
+        .addFields(
+          { name: "Title", value: created.title, inline: true },
+          {
+            name: "Date",
+            value: created.eventDate,
+            inline: true,
+          },
+          {
+            name: "Time",
+            value: `${created.startTime} - ${created.endTime} (${timezoneLabel})`,
+            inline: true,
+          },
+          {
+            name: "Location",
+            value: created.location || "-",
+            inline: true,
+          },
+          {
+            name: "Slots",
+            value: slotsSummary(created.slots),
+            inline: false,
+          },
+          {
+            name: "Posts every",
+            value: `${weekdayName(created.postWeekday)} at ${created.postTime} (${timezoneLabel})`,
+            inline: true,
+          },
+          {
+            name: "Channel",
+            value: `<#${created.channelId}>`,
+            inline: true,
+          }
+        )
+        .setFooter({
+          text: `Created by ${interaction.user.displayName || interaction.user.username}`,
+          iconURL: interaction.user.displayAvatarURL(),
+        })
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed] });
       return;
     }
 
@@ -329,26 +393,60 @@ module.exports = {
       const events = await eventStore.listEvents({ guildId });
 
       if (events.length === 0) {
-        await interaction.reply("No recurring events configured yet.");
+        const embed = new EmbedBuilder()
+          .setColor(BRAND_COLOR)
+          .setTitle("\u{1F4C5} Recurring Events")
+          .setDescription("No recurring events configured yet.");
+        await interaction.reply({ embeds: [embed] });
         return;
       }
 
       const timezoneLabel = interaction.client.timezoneLabel || "UTC";
-      const lines = events.map((event) => {
+      const embeds = events.map((event) => {
         const nextPostAt = parseIsoDate(event.nextPostAt);
         const nextPostDisplay = nextPostAt
           ? nextPostAt.toISOString().replace(".000Z", "Z")
           : event.nextPostAt;
-        return (
-          `#${event.id} -> ${event.title || "Session"}\n` +
-          `  Description: ${event.description}\n` +
-          `  Location: ${event.location || "-"}\n` +
-          `  Next event date: ${event.nextOccurrenceDate} (${event.startTime}-${event.endTime} ${timezoneLabel})\n` +
-          `  Slots: ${slotsSummary(event.slots)}\n` +
-          `  Next post: ${nextPostDisplay} UTC (every ${weekdayName(event.postWeekday)} ${event.postTime} ${timezoneLabel}) in <#${event.channelId}>`
-        );
+
+        return new EmbedBuilder()
+          .setColor(BRAND_COLOR)
+          .setTitle(`#${event.id} \u{2014} ${event.title || "Session"}`)
+          .setDescription(event.description || "-")
+          .addFields(
+            {
+              name: "Next event",
+              value: `${event.nextOccurrenceDate} (${event.startTime}-${event.endTime} ${timezoneLabel})`,
+              inline: true,
+            },
+            {
+              name: "Location",
+              value: event.location || "-",
+              inline: true,
+            },
+            {
+              name: "Slots",
+              value: slotsSummary(event.slots),
+              inline: false,
+            },
+            {
+              name: "Next post",
+              value: `${nextPostDisplay} UTC`,
+              inline: true,
+            },
+            {
+              name: "Schedule",
+              value: `Every ${weekdayName(event.postWeekday)} at ${event.postTime} (${timezoneLabel})`,
+              inline: true,
+            },
+            {
+              name: "Channel",
+              value: `<#${event.channelId}>`,
+              inline: true,
+            }
+          );
       });
-      await interaction.reply(`Configured recurring events:\n${lines.join("\n")}`);
+
+      await interaction.reply({ embeds: embeds.slice(0, 10) });
       return;
     }
 
@@ -358,13 +456,94 @@ module.exports = {
 
       if (!removed) {
         await interaction.reply({
-          content: `Event #${id} was not found.`,
+          embeds: [errorEmbed(`Event **#${id}** was not found.`)],
           ephemeral: true,
         });
         return;
       }
 
-      await interaction.reply(`Removed recurring event #${id}.`);
+      const embed = new EmbedBuilder()
+        .setColor(SUCCESS_COLOR)
+        .setTitle(`\u{1F5D1}\u{FE0F} Event #${id} Removed`)
+        .setDescription(
+          removed.title
+            ? `**${removed.title}** has been removed.`
+            : `Event #${id} has been removed.`
+        )
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed] });
+      return;
+    }
+
+    if (subcommand === "publish") {
+      const id = interaction.options.getInteger("id", true);
+      const event = await eventStore.getEventById({ guildId, id });
+
+      if (!event) {
+        await interaction.reply({
+          embeds: [errorEmbed(`Event **#${id}** was not found.`)],
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const timezoneLabel = interaction.client.timezoneLabel || "UTC";
+
+      let channel;
+      try {
+        channel = await interaction.client.channels.fetch(event.channelId);
+      } catch {
+        channel = null;
+      }
+
+      if (!channel || !channel.isTextBased()) {
+        await interaction.reply({
+          embeds: [
+            errorEmbed(
+              `Could not find channel <#${event.channelId}>. Make sure the bot has access.`
+            ),
+          ],
+          ephemeral: true,
+        });
+        return;
+      }
+
+      const rsvpByUser = event.rsvpByUser || {};
+      const accepted = Object.entries(rsvpByUser)
+        .filter(([, s]) => s === "accepted")
+        .map(([uid]) => uid);
+      const declined = Object.entries(rsvpByUser)
+        .filter(([, s]) => s === "declined")
+        .map(([uid]) => uid);
+
+      const payload = buildEventMessagePayload({
+        event,
+        rsvpSummary: { accepted, declined },
+        timezoneLabel,
+        allowMentionPing: true,
+      });
+
+      const message = await channel.send(payload);
+
+      await eventStore.markEventPosted({
+        guildId,
+        id: event.id,
+        nextPostAt: event.nextPostAt,
+        nextOccurrenceDate: event.nextOccurrenceDate,
+        lastPostedAt: new Date().toISOString(),
+        lastMessageId: message.id,
+      });
+
+      const embed = new EmbedBuilder()
+        .setColor(SUCCESS_COLOR)
+        .setTitle(`\u{1F4E2} Event #${id} Published`)
+        .setDescription(
+          `**${event.title || "Session"}** has been posted to <#${event.channelId}>.`
+        )
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed] });
     }
   },
 };
