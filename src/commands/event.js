@@ -1,4 +1,5 @@
 const { ChannelType, SlashCommandBuilder } = require("discord.js");
+const { parseSlotsInput, slotsSummary } = require("../events/slotParser");
 
 const WEEKDAYS = [
   { name: "Sunday", value: 0 },
@@ -11,7 +12,7 @@ const WEEKDAYS = [
 ];
 
 function normalizeHour(value) {
-  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+  const match = /^([01]\d|2[0-3])(?::|h)([0-5]\d)$/i.exec(value);
   if (!match) {
     return null;
   }
@@ -70,6 +71,13 @@ module.exports = {
         .setDescription("Create a recurring weekly event announcement")
         .addStringOption((option) =>
           option
+            .setName("title")
+            .setDescription("Session title")
+            .setRequired(true)
+            .setMaxLength(120)
+        )
+        .addStringOption((option) =>
+          option
             .setName("date")
             .setDescription("First event date in YYYY-MM-DD")
             .setRequired(true)
@@ -95,9 +103,41 @@ module.exports = {
         )
         .addStringOption((option) =>
           option
-            .setName("post_time")
-            .setDescription("Time to post each week in HH:MM (24h, local timezone)")
+            .setName("slots")
+            .setDescription("Comma-separated slots: `20h40 HP, 21h20 HP, 22h00 HC`")
             .setRequired(true)
+            .setMaxLength(500)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("reservation_url")
+            .setDescription("Default EVA reservation URL for all slots")
+            .setRequired(false)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("location")
+            .setDescription("Session location text shown in embed")
+            .setRequired(false)
+            .setMaxLength(120)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("mention")
+            .setDescription("Mention mode when posting session message")
+            .setRequired(false)
+            .addChoices(
+              { name: "No mention", value: "none" },
+              { name: "@everyone", value: "everyone" },
+              { name: "@here", value: "here" },
+              { name: "Custom role", value: "role" }
+            )
+        )
+        .addRoleOption((option) =>
+          option
+            .setName("mention_role")
+            .setDescription("Role to mention when mention mode is Custom role")
+            .setRequired(false)
         )
         .addIntegerOption((option) => {
           let configured = option
@@ -113,6 +153,12 @@ module.exports = {
           }
           return configured;
         })
+        .addStringOption((option) =>
+          option
+            .setName("post_time")
+            .setDescription("Time to post each week in HH:MM (24h, local timezone)")
+            .setRequired(true)
+        )
         .addChannelOption((option) =>
           option
             .setName("channel")
@@ -151,10 +197,18 @@ module.exports = {
     }
 
     if (subcommand === "create") {
+      const title = interaction.options.getString("title", true);
       const firstDateInput = interaction.options.getString("date", true);
       const startInput = interaction.options.getString("start", true);
       const endInput = interaction.options.getString("end", true);
       const description = interaction.options.getString("description", true);
+      const slotsInput = interaction.options.getString("slots", true);
+      const fallbackReservationUrl =
+        interaction.options.getString("reservation_url");
+      const location =
+        interaction.options.getString("location")?.trim() || null;
+      const mentionMode = interaction.options.getString("mention") || "none";
+      const mentionRole = interaction.options.getRole("mention_role");
       const postDayInput = interaction.options.getInteger("post_day");
       const postTimeInput = interaction.options.getString("post_time", true);
       const targetChannel =
@@ -191,6 +245,24 @@ module.exports = {
         return;
       }
 
+      const parsedSlots = parseSlotsInput(slotsInput, fallbackReservationUrl);
+      if (!parsedSlots.slots) {
+        await interaction.reply({
+          content: parsedSlots.error || "Invalid slots.",
+          ephemeral: true,
+        });
+        return;
+      }
+
+      if (mentionMode === "role" && !mentionRole) {
+        await interaction.reply({
+          content:
+            "When `mention` is set to Custom role, `mention_role` is required.",
+          ephemeral: true,
+        });
+        return;
+      }
+
       const timezoneLabel = interaction.client.timezoneLabel || "UTC";
       const timezoneOffset = parseTimezoneOffset(timezoneLabel);
       if (timezoneOffset === null) {
@@ -220,7 +292,12 @@ module.exports = {
       const created = await eventStore.createEvent({
         guildId,
         channelId: targetChannel.id,
+        title,
         description,
+        location,
+        slots: parsedSlots.slots,
+        mentionMode,
+        mentionRoleId: mentionRole?.id || null,
         eventDate: eventStore.formatDateOnly(firstDate),
         startTime: startParsed.label,
         endTime: endParsed.label,
@@ -229,14 +306,19 @@ module.exports = {
         nextPostAt: firstPostAt.toISOString(),
         nextOccurrenceDate: eventStore.formatDateOnly(firstDate),
         createdById: interaction.user.id,
+        createdByName: interaction.user.username,
+        rsvpByUser: {},
       });
 
       await interaction.reply(
         [
           `Recurring event #${created.id} created.`,
+          `Title: **${created.title}**`,
           `First occurrence: **${created.eventDate}**`,
           `Time: **${created.startTime}-${created.endTime} ${timezoneLabel}**`,
+          `Location: ${created.location || "-"}`,
           `Posts every **${weekdayName(created.postWeekday)} ${created.postTime} ${timezoneLabel}** in <#${created.channelId}>.`,
+          `Slots: ${slotsSummary(created.slots)}`,
           `Description: ${created.description}`,
         ].join("\n")
       );
@@ -258,8 +340,11 @@ module.exports = {
           ? nextPostAt.toISOString().replace(".000Z", "Z")
           : event.nextPostAt;
         return (
-          `#${event.id} -> ${event.description}\n` +
+          `#${event.id} -> ${event.title || "Session"}\n` +
+          `  Description: ${event.description}\n` +
+          `  Location: ${event.location || "-"}\n` +
           `  Next event date: ${event.nextOccurrenceDate} (${event.startTime}-${event.endTime} ${timezoneLabel})\n` +
+          `  Slots: ${slotsSummary(event.slots)}\n` +
           `  Next post: ${nextPostDisplay} UTC (every ${weekdayName(event.postWeekday)} ${event.postTime} ${timezoneLabel}) in <#${event.channelId}>`
         );
       });
