@@ -5,6 +5,7 @@ const {
   RSVP_ACTIONS,
 } = require("./eventMessagePayload");
 const {
+  EmbedBuilder,
   ModalBuilder,
   PermissionFlagsBits,
   TextInputBuilder,
@@ -12,6 +13,12 @@ const {
   ActionRowBuilder,
 } = require("discord.js");
 const { parseSlotsInput, slotsToInput } = require("./slotParser");
+
+const ERROR_COLOR = 0xed4245;
+
+function errorEmbed(message) {
+  return new EmbedBuilder().setColor(ERROR_COLOR).setDescription(message);
+}
 
 const EDIT_MODAL_PREFIX = "event-edit";
 const EDIT_TITLE_INPUT_ID = "event-edit-title";
@@ -56,7 +63,7 @@ async function handleRsvpAction(interaction, eventStore, event, status, timezone
 
   if (!updated) {
     await interaction.reply({
-      content: "This event no longer exists.",
+      embeds: [errorEmbed("This event no longer exists.")],
       ephemeral: true,
     });
     return;
@@ -80,7 +87,7 @@ async function handleDeleteAction(interaction, eventStore, event) {
 
   if (!canDelete) {
     await interaction.reply({
-      content: "Only the event creator or a server manager can delete this event.",
+      embeds: [errorEmbed("Only the event creator or a server manager can delete this event.")],
       ephemeral: true,
     });
     return;
@@ -99,7 +106,7 @@ async function handleEditAction(interaction, eventStore, event) {
 
   if (!canEdit) {
     await interaction.reply({
-      content: "Only the event creator or a server manager can edit this event.",
+      embeds: [errorEmbed("Only the event creator or a server manager can edit this event.")],
       ephemeral: true,
     });
     return;
@@ -180,7 +187,7 @@ async function handleEventEditModal({ interaction, eventStore, timezoneLabel }) 
   const guildId = interaction.guildId;
   if (!eventStore || !guildId) {
     await interaction.reply({
-      content: "Event store is unavailable in this context.",
+      embeds: [errorEmbed("Event store is unavailable in this context.")],
       ephemeral: true,
     });
     return true;
@@ -189,7 +196,7 @@ async function handleEventEditModal({ interaction, eventStore, timezoneLabel }) 
   const event = await eventStore.getEventById({ guildId, id: eventId });
   if (!event) {
     await interaction.reply({
-      content: "Event data not found.",
+      embeds: [errorEmbed("Event data not found.")],
       ephemeral: true,
     });
     return true;
@@ -200,7 +207,7 @@ async function handleEventEditModal({ interaction, eventStore, timezoneLabel }) 
     interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
   if (!canEdit) {
     await interaction.reply({
-      content: "Only the event creator or a server manager can edit this event.",
+      embeds: [errorEmbed("Only the event creator or a server manager can edit this event.")],
       ephemeral: true,
     });
     return true;
@@ -216,9 +223,12 @@ async function handleEventEditModal({ interaction, eventStore, timezoneLabel }) 
 
   if (!title || !description || !parsedSlots.slots) {
     await interaction.reply({
-      content:
-        parsedSlots.error ||
-        "Title, description, and slots are required to update this event.",
+      embeds: [
+        errorEmbed(
+          parsedSlots.error ||
+            "Title, description, and slots are required to update this event."
+        ),
+      ],
       ephemeral: true,
     });
     return true;
@@ -235,7 +245,7 @@ async function handleEventEditModal({ interaction, eventStore, timezoneLabel }) 
 
   if (!updated) {
     await interaction.reply({
-      content: "Could not update event.",
+      embeds: [errorEmbed("Could not update event.")],
       ephemeral: true,
     });
     return true;
@@ -264,8 +274,11 @@ async function handleEventEditModal({ interaction, eventStore, timezoneLabel }) 
     }
   }
 
+  const successEmbed = new EmbedBuilder()
+    .setColor(0x57f287)
+    .setDescription(`\u{2705} Session **#${eventId}** updated.`);
   await interaction.reply({
-    content: `Session #${eventId} updated.`,
+    embeds: [successEmbed],
     ephemeral: true,
   });
   return true;
@@ -284,7 +297,7 @@ async function handleEventButtons({ interaction, eventStore, timezoneLabel }) {
   const guildId = interaction.guildId;
   if (!eventStore || !guildId) {
     await interaction.reply({
-      content: "Event store is unavailable in this context.",
+      embeds: [errorEmbed("Event store is unavailable in this context.")],
       ephemeral: true,
     });
     return true;
@@ -296,7 +309,7 @@ async function handleEventButtons({ interaction, eventStore, timezoneLabel }) {
   });
   if (!event) {
     await interaction.reply({
-      content: "Event data not found for this message.",
+      embeds: [errorEmbed("Event data not found for this message.")],
       ephemeral: true,
     });
     return true;

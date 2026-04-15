@@ -1,4 +1,10 @@
-const { PermissionFlagsBits, SlashCommandBuilder } = require("discord.js");
+const {
+  EmbedBuilder,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+} = require("discord.js");
+
+const BRAND_COLOR = 0x6b2d87;
 
 const WEEKDAYS = [
   { name: "Sunday", value: 0 },
@@ -48,19 +54,24 @@ module.exports = {
     const guildId = interaction.guildId;
 
     if (!eventStore || !guildId) {
-      await interaction.reply({
-        content: "Week-start settings are unavailable in this context.",
-        ephemeral: true,
-      });
+      const embed = new EmbedBuilder()
+        .setColor(0xed4245)
+        .setDescription("Week-start settings are unavailable in this context.");
+      await interaction.reply({ embeds: [embed], ephemeral: true });
       return;
     }
 
     const subcommand = interaction.options.getSubcommand();
     if (subcommand === "show") {
       const settings = await eventStore.getGuildSettings({ guildId });
-      await interaction.reply(
-        `Current week start day is **${weekdayName(settings.weekStartDay)}**.`
-      );
+      const dayName = weekdayName(settings.weekStartDay);
+
+      const embed = new EmbedBuilder()
+        .setColor(BRAND_COLOR)
+        .setTitle("\u{1F4C5} Week Start Day")
+        .setDescription(`Current week start day is **${dayName}**.`);
+
+      await interaction.reply({ embeds: [embed] });
       return;
     }
 
@@ -69,10 +80,10 @@ module.exports = {
         PermissionFlagsBits.ManageGuild
       );
       if (!canManageGuild) {
-        await interaction.reply({
-          content: "You need the Manage Server permission to change week start.",
-          ephemeral: true,
-        });
+        const embed = new EmbedBuilder()
+          .setColor(0xed4245)
+          .setDescription("You need the **Manage Server** permission to change week start.");
+        await interaction.reply({ embeds: [embed], ephemeral: true });
         return;
       }
 
@@ -81,9 +92,14 @@ module.exports = {
         guildId,
         weekStartDay: day,
       });
-      await interaction.reply(
-        `Week start day set to **${weekdayName(updated.weekStartDay)}**.`
-      );
+      const dayName = weekdayName(updated.weekStartDay);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x57f287)
+        .setTitle("\u{2705} Week Start Updated")
+        .setDescription(`Week start day set to **${dayName}**.`);
+
+      await interaction.reply({ embeds: [embed] });
     }
   },
 };
