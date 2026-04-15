@@ -153,22 +153,28 @@ function buildGoogleCalendarUrl(event, timezoneLabel) {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
-function mentionContent(mentionMode) {
-  if (mentionMode === "everyone") {
+function mentionContent(event) {
+  if (event.mentionMode === "role" && event.mentionRoleId) {
+    return `<@&${event.mentionRoleId}>`;
+  }
+  if (event.mentionMode === "everyone") {
     return "@everyone";
   }
-  if (mentionMode === "here") {
+  if (event.mentionMode === "here") {
     return "@here";
   }
   return "";
 }
 
-function mentionAllowed(mentionMode, allowPing) {
-  if (!allowPing || mentionMode === "none") {
+function mentionAllowed(event, allowPing) {
+  if (!allowPing || event.mentionMode === "none") {
     return { parse: [] };
   }
-  if (mentionMode === "everyone" || mentionMode === "here") {
+  if (event.mentionMode === "everyone" || event.mentionMode === "here") {
     return { parse: ["everyone"] };
+  }
+  if (event.mentionMode === "role" && event.mentionRoleId) {
+    return { parse: [], roles: [event.mentionRoleId] };
   }
   return { parse: [] };
 }
@@ -235,8 +241,14 @@ function buildEventMessagePayload({
     .setColor(0x6b2d87)
     .setTitle(event.title || `Session #${event.id}`)
     .setDescription(event.description || "Aucune description.")
+    .addFields({ name: "Créneaux", value: formatAgenda(event.slots), inline: false });
+
+  if (event.location) {
+    embed.addFields({ name: "Location", value: event.location, inline: false });
+  }
+
+  embed
     .addFields(
-      { name: "Créneaux", value: formatAgenda(event.slots), inline: false },
       { name: "Time", value: timeWithCalendar, inline: false },
       {
         name: `✅ Accepted (${accepted.length})`,
@@ -264,7 +276,16 @@ function buildEventMessagePayload({
       .setLabel("Decline")
   );
 
-  const controlRow = new ActionRowBuilder().addComponents(
+  const controlRow = new ActionRowBuilder();
+  if (calendarUrl) {
+    controlRow.addComponents(
+      new ButtonBuilder()
+        .setStyle(ButtonStyle.Link)
+        .setURL(calendarUrl)
+        .setLabel("Add to Google")
+    );
+  }
+  controlRow.addComponents(
     new ButtonBuilder()
       .setCustomId(actionCustomId(CONTROL_ACTIONS.EDIT))
       .setStyle(ButtonStyle.Secondary)
@@ -276,8 +297,8 @@ function buildEventMessagePayload({
   );
 
   return {
-    content: mentionContent(event.mentionMode),
-    allowedMentions: mentionAllowed(event.mentionMode, allowMentionPing),
+    content: mentionContent(event),
+    allowedMentions: mentionAllowed(event, allowMentionPing),
     embeds: [embed],
     components: [rsvpRow, controlRow],
   };

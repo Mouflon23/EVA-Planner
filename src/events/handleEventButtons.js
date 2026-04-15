@@ -17,6 +17,7 @@ const EDIT_MODAL_PREFIX = "event-edit";
 const EDIT_TITLE_INPUT_ID = "event-edit-title";
 const EDIT_DESCRIPTION_INPUT_ID = "event-edit-description";
 const EDIT_SLOTS_INPUT_ID = "event-edit-slots";
+const EDIT_LOCATION_INPUT_ID = "event-edit-location";
 
 function statusFromAction(action) {
   if (action === RSVP_ACTIONS.ACCEPTED) {
@@ -132,10 +133,19 @@ async function handleEditAction(interaction, eventStore, event) {
     .setMaxLength(900)
     .setValue(slotsToInput(event.slots));
 
+  const locationInput = new TextInputBuilder()
+    .setCustomId(EDIT_LOCATION_INPUT_ID)
+    .setLabel("Location (optional)")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setMaxLength(120)
+    .setValue(event.location || "");
+
   modal.addComponents(
     new ActionRowBuilder().addComponents(titleInput),
     new ActionRowBuilder().addComponents(descriptionInput),
-    new ActionRowBuilder().addComponents(slotsInput)
+    new ActionRowBuilder().addComponents(slotsInput),
+    new ActionRowBuilder().addComponents(locationInput)
   );
 
   await interaction.showModal(modal);
@@ -201,6 +211,7 @@ async function handleEventEditModal({ interaction, eventStore, timezoneLabel }) 
     .getTextInputValue(EDIT_DESCRIPTION_INPUT_ID)
     .trim();
   const slotsInput = interaction.fields.getTextInputValue(EDIT_SLOTS_INPUT_ID).trim();
+  const location = interaction.fields.getTextInputValue(EDIT_LOCATION_INPUT_ID).trim();
   const parsedSlots = parseSlotsInput(slotsInput);
 
   if (!title || !description || !parsedSlots.slots) {
@@ -219,6 +230,7 @@ async function handleEventEditModal({ interaction, eventStore, timezoneLabel }) 
     title,
     description,
     slots: parsedSlots.slots,
+    location,
   });
 
   if (!updated) {

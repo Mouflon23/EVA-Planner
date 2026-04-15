@@ -66,16 +66,20 @@ npm start
 - `description` -> text shown in the session embed
 - `slots` -> comma-separated reservation slots (`20h40 HP, 21h20 HP, 22h00 HC`)
 - `reservation_url` (optional) -> default EVA reservation URL for all slots
-- `mention` (optional) -> `none`, `@everyone`, or `@here` when posting
+- `mention` (optional) -> `none`, `@everyone`, `@here`, or `role`
+- `mention_role` (optional) -> role to mention when `mention=role`
+- `location` (optional) -> location text shown in session embed
 - `post_day` -> weekday when the bot should post each weekly event (optional: defaults to `/weekstart` setting)
 - `post_time` -> time when the bot should post each week
 - `channel` (optional) -> channel where event announcements are posted
 
 When the bot posts the session message, it includes:
 - rich embed layout (title, slots with HP/HC, time range, Google calendar link)
+- optional location field (if set)
 - RSVP columns:
   - `✅ Accepted`
   - `❌ Declined`
+- dedicated `Add to Google` link button
 - action buttons:
   - `Accept`, `Decline`
   - `Edit` (creator/admin)

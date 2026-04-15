@@ -116,14 +116,28 @@ module.exports = {
         )
         .addStringOption((option) =>
           option
+            .setName("location")
+            .setDescription("Session location text shown in embed")
+            .setRequired(false)
+            .setMaxLength(120)
+        )
+        .addStringOption((option) =>
+          option
             .setName("mention")
             .setDescription("Mention mode when posting session message")
             .setRequired(false)
             .addChoices(
               { name: "No mention", value: "none" },
               { name: "@everyone", value: "everyone" },
-              { name: "@here", value: "here" }
+              { name: "@here", value: "here" },
+              { name: "Custom role", value: "role" }
             )
+        )
+        .addRoleOption((option) =>
+          option
+            .setName("mention_role")
+            .setDescription("Role to mention when mention mode is Custom role")
+            .setRequired(false)
         )
         .addIntegerOption((option) => {
           let configured = option
@@ -191,7 +205,10 @@ module.exports = {
       const slotsInput = interaction.options.getString("slots", true);
       const fallbackReservationUrl =
         interaction.options.getString("reservation_url");
+      const location =
+        interaction.options.getString("location")?.trim() || null;
       const mentionMode = interaction.options.getString("mention") || "none";
+      const mentionRole = interaction.options.getRole("mention_role");
       const postDayInput = interaction.options.getInteger("post_day");
       const postTimeInput = interaction.options.getString("post_time", true);
       const targetChannel =
@@ -237,6 +254,15 @@ module.exports = {
         return;
       }
 
+      if (mentionMode === "role" && !mentionRole) {
+        await interaction.reply({
+          content:
+            "When `mention` is set to Custom role, `mention_role` is required.",
+          ephemeral: true,
+        });
+        return;
+      }
+
       const timezoneLabel = interaction.client.timezoneLabel || "UTC";
       const timezoneOffset = parseTimezoneOffset(timezoneLabel);
       if (timezoneOffset === null) {
@@ -268,8 +294,10 @@ module.exports = {
         channelId: targetChannel.id,
         title,
         description,
+        location,
         slots: parsedSlots.slots,
         mentionMode,
+        mentionRoleId: mentionRole?.id || null,
         eventDate: eventStore.formatDateOnly(firstDate),
         startTime: startParsed.label,
         endTime: endParsed.label,
@@ -288,6 +316,7 @@ module.exports = {
           `Title: **${created.title}**`,
           `First occurrence: **${created.eventDate}**`,
           `Time: **${created.startTime}-${created.endTime} ${timezoneLabel}**`,
+          `Location: ${created.location || "-"}`,
           `Posts every **${weekdayName(created.postWeekday)} ${created.postTime} ${timezoneLabel}** in <#${created.channelId}>.`,
           `Slots: ${slotsSummary(created.slots)}`,
           `Description: ${created.description}`,
@@ -313,6 +342,7 @@ module.exports = {
         return (
           `#${event.id} -> ${event.title || "Session"}\n` +
           `  Description: ${event.description}\n` +
+          `  Location: ${event.location || "-"}\n` +
           `  Next event date: ${event.nextOccurrenceDate} (${event.startTime}-${event.endTime} ${timezoneLabel})\n` +
           `  Slots: ${slotsSummary(event.slots)}\n` +
           `  Next post: ${nextPostDisplay} UTC (every ${weekdayName(event.postWeekday)} ${event.postTime} ${timezoneLabel}) in <#${event.channelId}>`

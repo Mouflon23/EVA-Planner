@@ -97,6 +97,13 @@ function normalizeSlots(slots) {
     }));
 }
 
+function normalizeMentionMode(mentionMode) {
+  if (mentionMode === "role" || mentionMode === "everyone" || mentionMode === "here") {
+    return mentionMode;
+  }
+  return "none";
+}
+
 function createMemoryEventStore() {
   const eventsByGuild = new Map();
   const settingsByGuild = new Map();
@@ -108,6 +115,7 @@ function createMemoryEventStore() {
       const event = {
         ...eventInput,
         slots: normalizeSlots(eventInput.slots),
+        mentionMode: normalizeMentionMode(eventInput.mentionMode),
         rsvpByUser: normalizeRsvpByUser(eventInput.rsvpByUser),
         id: nextId++,
         createdAt: new Date().toISOString(),
@@ -140,7 +148,7 @@ function createMemoryEventStore() {
       event.description = description;
       return event;
     },
-    async updateEventDetails({ guildId, id, title, description, slots }) {
+    async updateEventDetails({ guildId, id, title, description, slots, location }) {
       const guildEvents = eventsByGuild.get(guildId) ?? [];
       const event = guildEvents.find((item) => item.id === id);
       if (!event) {
@@ -150,6 +158,7 @@ function createMemoryEventStore() {
       event.title = title;
       event.description = description;
       event.slots = normalizeSlots(slots);
+      event.location = location || null;
       return event;
     },
     async setRsvp({ guildId, id, userId, status }) {
@@ -249,6 +258,7 @@ async function createMongoEventStore(mongoUri) {
       const event = {
         ...eventInput,
         slots: normalizeSlots(eventInput.slots),
+        mentionMode: normalizeMentionMode(eventInput.mentionMode),
         rsvpByUser: normalizeRsvpByUser(eventInput.rsvpByUser),
         id: nextId,
         createdAt: new Date().toISOString(),
@@ -274,7 +284,7 @@ async function createMongoEventStore(mongoUri) {
       );
       return normalizeFindOneResult(result);
     },
-    async updateEventDetails({ guildId, id, title, description, slots }) {
+    async updateEventDetails({ guildId, id, title, description, slots, location }) {
       const result = await collection.findOneAndUpdate(
         { guildId, id },
         {
@@ -282,6 +292,7 @@ async function createMongoEventStore(mongoUri) {
             title,
             description,
             slots: normalizeSlots(slots),
+            location: location || null,
           },
         },
         { returnDocument: "after" }
