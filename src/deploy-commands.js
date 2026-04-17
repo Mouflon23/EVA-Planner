@@ -3,6 +3,7 @@ const { CLIENT_ID, DISCORD_TOKEN, GUILD_ID, validateEnv } = require("./config");
 const ping = require("./commands/ping");
 const event = require("./commands/event");
 const weekstart = require("./commands/weekstart");
+const timezone = require("./commands/timezone");
 
 validateEnv();
 
@@ -10,6 +11,7 @@ const commands = [
   ping.data.toJSON(),
   event.data.toJSON(),
   weekstart.data.toJSON(),
+  timezone.data.toJSON(),
 ];
 
 async function deploy() {

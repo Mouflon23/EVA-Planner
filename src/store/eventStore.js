@@ -174,11 +174,17 @@ function createMemoryEventStore() {
       return event;
     },
     async getGuildSettings({ guildId }) {
-      return settingsByGuild.get(guildId) ?? { weekStartDay: 1 };
+      return settingsByGuild.get(guildId) ?? { weekStartDay: 1, timezone: null };
     },
     async setWeekStartDay({ guildId, weekStartDay }) {
-      const current = settingsByGuild.get(guildId) ?? { weekStartDay: 1 };
+      const current = settingsByGuild.get(guildId) ?? { weekStartDay: 1, timezone: null };
       const updated = { ...current, weekStartDay };
+      settingsByGuild.set(guildId, updated);
+      return updated;
+    },
+    async setTimezone({ guildId, timezone }) {
+      const current = settingsByGuild.get(guildId) ?? { weekStartDay: 1, timezone: null };
+      const updated = { ...current, timezone };
       settingsByGuild.set(guildId, updated);
       return updated;
     },
@@ -310,12 +316,13 @@ async function createMongoEventStore(mongoUri) {
     async getGuildSettings({ guildId }) {
       const settings = await settingsCollection.findOne({ guildId });
       if (!settings) {
-        return { weekStartDay: 1 };
+        return { weekStartDay: 1, timezone: null };
       }
 
       return {
         weekStartDay:
           typeof settings.weekStartDay === "number" ? settings.weekStartDay : 1,
+        timezone: settings.timezone || null,
       };
     },
     async setWeekStartDay({ guildId, weekStartDay }) {
@@ -326,6 +333,15 @@ async function createMongoEventStore(mongoUri) {
       );
 
       return { weekStartDay };
+    },
+    async setTimezone({ guildId, timezone }) {
+      await settingsCollection.updateOne(
+        { guildId },
+        { $set: { guildId, timezone } },
+        { upsert: true }
+      );
+
+      return { timezone };
     },
     async deleteEvent({ guildId, id }) {
       const result = await collection.findOneAndDelete({ guildId, id });

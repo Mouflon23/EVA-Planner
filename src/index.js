@@ -51,11 +51,21 @@ async function main() {
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
+    let timezoneLabel = client.timezoneLabel || "UTC";
+    if (interaction.guildId && eventStore) {
+      try {
+        const settings = await eventStore.getGuildSettings({ guildId: interaction.guildId });
+        if (settings.timezone) {
+          timezoneLabel = settings.timezone;
+        }
+      } catch {}
+    }
+
     if (interaction.isModalSubmit()) {
       const handled = await handleEventEditModal({
         interaction,
         eventStore,
-        timezoneLabel: client.timezoneLabel || "UTC",
+        timezoneLabel,
       });
       if (handled) {
         return;
@@ -66,7 +76,7 @@ async function main() {
       const handled = await handleEventButtons({
         interaction,
         eventStore,
-        timezoneLabel: client.timezoneLabel || "UTC",
+        timezoneLabel,
       });
       if (handled) {
         return;

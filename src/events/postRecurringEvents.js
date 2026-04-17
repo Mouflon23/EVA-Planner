@@ -14,13 +14,23 @@ async function postDueEvents(client) {
 
   const now = new Date();
   const dueEvents = await eventStore.listDueEvents({ nowIso: now.toISOString() });
-  const timezoneLabel = client.timezoneLabel || "UTC";
+  const defaultTz = client.timezoneLabel || "UTC";
 
   for (const event of dueEvents) {
     try {
       const channel = await client.channels.fetch(event.channelId);
       if (!channel || !channel.isTextBased()) {
         continue;
+      }
+
+      let timezoneLabel = defaultTz;
+      if (event.guildId) {
+        try {
+          const settings = await eventStore.getGuildSettings({ guildId: event.guildId });
+          if (settings.timezone) {
+            timezoneLabel = settings.timezone;
+          }
+        } catch {}
       }
 
       const payload = buildEventMessagePayload({

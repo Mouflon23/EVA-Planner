@@ -229,6 +229,9 @@ module.exports = {
       return;
     }
 
+    const guildSettings = await eventStore.getGuildSettings({ guildId });
+    const timezoneLabel = guildSettings.timezone || interaction.client.timezoneLabel || "UTC";
+
     if (subcommand === "create") {
       const title = interaction.options.getString("title", true);
       const firstDateInput = interaction.options.getString("date", true);
@@ -299,7 +302,6 @@ module.exports = {
         return;
       }
 
-      const timezoneLabel = interaction.client.timezoneLabel || "UTC";
       const timezoneOffset = parseTimezoneOffset(timezoneLabel);
       if (timezoneOffset === null) {
         await interaction.reply({
@@ -313,7 +315,6 @@ module.exports = {
         return;
       }
 
-      const guildSettings = await eventStore.getGuildSettings({ guildId });
       const postDay =
         postDayInput ?? (guildSettings?.weekStartDay ?? 1);
 
@@ -408,7 +409,6 @@ module.exports = {
         return;
       }
 
-      const timezoneLabel = interaction.client.timezoneLabel || "UTC";
       const embeds = events.map((event) => {
         const nextPostAt = parseIsoDate(event.nextPostAt);
         const nextPostDisplay = nextPostAt
@@ -494,8 +494,6 @@ module.exports = {
         });
         return;
       }
-
-      const timezoneLabel = interaction.client.timezoneLabel || "UTC";
 
       let channel;
       try {
