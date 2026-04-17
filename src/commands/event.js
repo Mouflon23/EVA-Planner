@@ -116,13 +116,6 @@ module.exports = {
         )
         .addStringOption((option) =>
           option
-            .setName("description")
-            .setDescription("Event description")
-            .setRequired(true)
-            .setMaxLength(500)
-        )
-        .addStringOption((option) =>
-          option
             .setName("slots")
             .setDescription("Comma-separated slots: `20h40 HP, 21h20 HP, 22h00 HC`")
             .setRequired(true)
@@ -133,6 +126,13 @@ module.exports = {
             .setName("post_time")
             .setDescription("Time to post each week in HH:MM (24h, local timezone)")
             .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("description")
+            .setDescription("Event description")
+            .setRequired(false)
+            .setMaxLength(500)
         )
         .addStringOption((option) =>
           option
@@ -234,7 +234,7 @@ module.exports = {
       const firstDateInput = interaction.options.getString("date", true);
       const startInput = interaction.options.getString("start", true);
       const endInput = interaction.options.getString("end", true);
-      const description = interaction.options.getString("description", true);
+      const description = interaction.options.getString("description") || "";
       const slotsInput = interaction.options.getString("slots", true);
       const fallbackReservationUrl =
         interaction.options.getString("reservation_url");

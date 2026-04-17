@@ -1,7 +1,6 @@
 const { REST, Routes } = require("discord.js");
 const { CLIENT_ID, DISCORD_TOKEN, GUILD_ID, validateEnv } = require("./config");
 const ping = require("./commands/ping");
-const checkin = require("./commands/checkin");
 const event = require("./commands/event");
 const weekstart = require("./commands/weekstart");
 
@@ -9,7 +8,6 @@ validateEnv();
 
 const commands = [
   ping.data.toJSON(),
-  checkin.data.toJSON(),
   event.data.toJSON(),
   weekstart.data.toJSON(),
 ];

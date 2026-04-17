@@ -1,7 +1,6 @@
 const { createMockInteraction } = require("./helpers/mockInteraction");
 const { createEventStore } = require("../src/store/eventStore");
 const ping = require("../src/commands/ping");
-const checkin = require("../src/commands/checkin");
 const weekstart = require("../src/commands/weekstart");
 const { PermissionFlagsBits } = require("discord.js");
 
@@ -26,42 +25,6 @@ describe("ping command", () => {
     const latencyField = fields.find((f) => f.name === "Latency");
     expect(latencyField).toBeDefined();
     expect(latencyField.value).toMatch(/\d+ms/);
-  });
-});
-
-describe("checkin command", () => {
-  it("has correct command name", () => {
-    expect(checkin.data.name).toBe("checkin");
-  });
-
-  it("replies with green status embed", async () => {
-    const interaction = createMockInteraction({
-      optionsData: { status: "green", notes: "All good" },
-    });
-    await checkin.execute(interaction);
-    expect(interaction.reply).toHaveBeenCalledTimes(1);
-    const embedData = interaction.reply.mock.calls[0][0].embeds[0].data;
-    expect(embedData.description).toContain("Green - On Track");
-    const notesField = embedData.fields.find((f) => f.name === "Notes");
-    expect(notesField.value).toBe("All good");
-  });
-
-  it("uses default notes when none provided", async () => {
-    const interaction = createMockInteraction({
-      optionsData: { status: "red" },
-    });
-    await checkin.execute(interaction);
-    const embedData = interaction.reply.mock.calls[0][0].embeds[0].data;
-    const notesField = embedData.fields.find((f) => f.name === "Notes");
-    expect(notesField.value).toBe("No additional notes.");
-  });
-
-  it("uses correct color for each status", async () => {
-    for (const [status, color] of [["green", 0x57f287], ["yellow", 0xfee75c], ["red", 0xed4245]]) {
-      const interaction = createMockInteraction({ optionsData: { status } });
-      await checkin.execute(interaction);
-      expect(interaction.reply.mock.calls[0][0].embeds[0].data.color).toBe(color);
-    }
   });
 });
 
