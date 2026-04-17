@@ -353,7 +353,7 @@ module.exports = {
       const embed = new EmbedBuilder()
         .setColor(SUCCESS_COLOR)
         .setTitle(`\u{2705} Event #${created.id} Created`)
-        .setDescription(created.description)
+        .setDescription(created.description || "No description.")
         .addFields(
           { name: "Title", value: created.title, inline: true },
           {
